@@ -18,3 +18,4 @@ pytorch-lightning
 optuna
 wandb
 tensorboard
+python-dotenv
