@@ -1,0 +1,14 @@
+# configs/train/base.yaml
+optimizer: adamw
+lr: 1e-4
+weight_decay: 0.01
+batch_size: 64
+epochs: 50
+grad_clip_norm: 1.0
+early_stop:
+  patience: 10
+  metric: "f1"
+  mode: "max"
+precision: "bf16"             # or "16-mixed" if you prefer
+accumulate_grad_batches: 1
+num_workers: ${paths.num_workers}

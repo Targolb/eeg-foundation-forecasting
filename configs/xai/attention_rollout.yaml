@@ -1,0 +1,5 @@
+# configs/xai/attention_rollout.yaml
+enabled: true
+layer_start: 0.2        # start rollout from this fraction of depth
+normalize: true
+save_dir: ${paths.output_dir}/xai/attn_rollout

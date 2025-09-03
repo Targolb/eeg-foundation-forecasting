@@ -1,0 +1,10 @@
+# configs/data/chbmit.yaml
+name: chbmit
+root: ${paths.chbmit_root}
+sampling_rate: 256
+channels: ["Fp1","Fp2","F3","F4","C3","C4","P3","P4","O1","O2","F7","F8","T3","T4","T5","T6","Fz","Cz","Pz"]
+window_sec: 30
+stride_sec: 5
+forecast_horizon_min: 60
+edf_glob: "**/*.edf"
+label_source: "seizure_intervals"

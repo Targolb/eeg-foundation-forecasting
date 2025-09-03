@@ -1,0 +1,9 @@
+# configs/model/eeg_simclr.yaml
+name: eeg_simclr
+backbone: "EEGTransformerSimCLR"
+embed_dim: 256
+depth: 12
+heads: 8
+mlp_ratio: 4.0
+dropout: 0.1
+proj_dim: 128

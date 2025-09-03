@@ -1,0 +1,31 @@
+# configs/config.yaml
+defaults:
+  - data: chbmit              # switch via `data=tuh` or `data=kaggle_complete`
+  - model: dual_branch        # or eeg_mem / eeg_simclr
+  - pretrain: mem             # or simclr
+  - train: base               # base training knobs
+  - finetune: forecasting     # forecasting head/settings
+  - finetune/loso: loso       # LOSO CV settings (composes under finetune)
+  - xai: attention_rollout    # or shap
+
+# global/common
+seed: 42
+paths:
+  data_root: ${oc.env:DATA_ROOT,/data}
+  chbmit_root: ${oc.env:CHBMIT_ROOT,${paths.data_root}/chbmit}
+  kaggle_root: ${oc.env:KAGGLE_EEG_ROOT,${paths.data_root}/kaggle_eeg}
+  tuh_root: ${oc.env:TUH_ROOT,${paths.data_root}/tusz_v2.0.3}
+  output_dir: ${oc.env:OUTPUT_DIR,/workspace/outputs}
+  num_workers: ${oc.env:NUM_WORKERS,8}
+  wandb_project: ${oc.env:WANDB_PROJECT,eeg-foundation-forecasting}
+
+logging:
+  wandb: true
+  run_name: ${now:%Y%m%d-%H%M%S}-${hydra:job.name}
+  save_dir: ${paths.output_dir}
+
+hydra:
+  run:
+    dir: ${paths.output_dir}/runs/${now:%Y%m%d-%H%M%S}
+  job:
+    chdir: true

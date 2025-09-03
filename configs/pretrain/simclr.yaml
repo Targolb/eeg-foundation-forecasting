@@ -1,0 +1,15 @@
+# configs/pretrain/simclr.yaml
+task: simclr
+proj_dim: 128
+temperature: 0.2
+augment:
+  jitter_std: 0.02
+  time_crop_sec: 5
+  freq_mask_bands: 2
+opt:
+  optimizer: adamw
+  lr: 3e-4
+  weight_decay: 0.05
+train:
+  batch_size: 256
+  epochs: 200

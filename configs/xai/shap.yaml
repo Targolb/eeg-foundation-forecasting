@@ -1,0 +1,5 @@
+# configs/xai/shap.yaml
+enabled: true
+nsamples: 200
+batch_explainer: true
+save_dir: ${paths.output_dir}/xai/shap

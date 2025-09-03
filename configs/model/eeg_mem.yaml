@@ -1,0 +1,8 @@
+# configs/model/eeg_mem.yaml
+name: eeg_mem
+backbone: "EEGTransformerMEM"
+embed_dim: 256
+depth: 12
+heads: 8
+mlp_ratio: 4.0
+dropout: 0.1

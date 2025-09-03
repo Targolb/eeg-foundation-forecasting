@@ -1,0 +1,20 @@
+# core utils
+numpy
+scipy
+pandas
+scikit-learn
+tqdm
+matplotlib
+seaborn
+pyyaml
+
+# EEG + ML
+mne
+pyEDFlib
+einops
+omegaconf
+hydra-core
+pytorch-lightning
+optuna
+wandb
+tensorboard

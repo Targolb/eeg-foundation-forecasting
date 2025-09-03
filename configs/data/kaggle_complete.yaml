@@ -1,0 +1,9 @@
+# configs/data/kaggle_complete.yaml
+name: kaggle_complete
+root: ${paths.kaggle_root}
+file_glob: "**/*.csv"
+sampling_rate: 256
+channels: "from_csv"
+window_sec: 4
+stride_sec: 0.5
+use_for_pretrain_only: true

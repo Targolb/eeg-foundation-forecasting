@@ -1,0 +1,16 @@
+# configs/pretrain/mem.yaml
+task: mem
+mask_prob: 0.65
+patch_len: 256
+model:
+  embed_dim: 256
+  depth: 12
+  heads: 8
+  mlp_ratio: 4.0
+opt:
+  optimizer: adamw
+  lr: 3e-4
+  weight_decay: 0.05
+train:
+  batch_size: 64
+  epochs: 100

@@ -1,0 +1,24 @@
+# configs/model/dual_branch.yaml
+name: dual_branch
+branches:
+  raw:
+    enabled: true
+    backbone: "TemporalTransformer"
+    embed_dim: 256
+    depth: 6
+    heads: 8
+  stft:
+    enabled: true
+    n_fft: 256
+    hop_length: 128
+    window: hann
+    backbone: "SpectralTransformer"
+    embed_dim: 256
+    depth: 6
+    heads: 8
+fusion:
+  type: "concat+mlp"
+  hidden_dim: 256
+  dropout: 0.2
+head:
+  out_dim: 2

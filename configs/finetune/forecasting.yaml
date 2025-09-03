@@ -1,0 +1,4 @@
+# configs/finetune/forecasting.yaml
+use_pretrained: true
+pretrained_ckpt: ${paths.output_dir}/pretrain/mem/best.ckpt
+metrics: ["acc","f1","auroc","precision","recall"]

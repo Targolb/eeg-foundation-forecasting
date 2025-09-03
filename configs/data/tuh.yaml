@@ -1,0 +1,8 @@
+# configs/data/tuh.yaml
+name: tuh
+root: ${paths.tuh_root}
+sampling_rate: 250
+channels: "auto"
+window_sec: 30
+stride_sec: 5
+split_protocol: "official"

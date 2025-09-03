@@ -1,0 +1,5 @@
+# configs/finetune/loso.yaml
+scheme: loso
+subjects_list: null          # auto-discover
+eval_split_ratio: 0.1        # for Optuna tuning per fold
+save_each_fold: true
