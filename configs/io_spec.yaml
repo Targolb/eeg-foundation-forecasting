@@ -1,0 +1,5 @@
+channels_common: [Fp1,Fp2,F3,F4,C3,C4,P3,P4,O1,O2,F7,F8,T7,T8,P7,P8,Fz,Cz,Pz]
+channel_aliases: {T3: T7, T4: T8, T5: P7, T6: P8}
+fs_target: 256
+window_s: 5.0
+stride_s: 2.5
