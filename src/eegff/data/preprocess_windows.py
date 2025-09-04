@@ -9,7 +9,6 @@ from tqdm import tqdm
 from scipy.signal import iirnotch, filtfilt, butter, resample_poly
 import mne  # EDF reading (CHB-MIT)
 
-
 # ============================= Config =============================
 
 @dataclass
@@ -20,7 +19,6 @@ class IOSpec:
     window_s: float
     stride_s: float
 
-
 @dataclass
 class FilterSpec:
     hp_hz: Optional[float] = 0.5
@@ -28,25 +26,21 @@ class FilterSpec:
     notch_hz: Optional[float] = 60.0
     q_notch: float = 30.0
 
-
 # CHB-MIT canonical bipolar montage (18 pairs)
 CHBMIT_BIPOLAR18 = [
-    "FP1-F7", "F7-T7", "T7-P7", "P7-O1",
-    "FP2-F8", "F8-T8", "T8-P8", "P8-O2",
-    "FZ-CZ", "CZ-PZ",
-    "FP1-F3", "F3-C3", "C3-P3", "P3-O1",
-    "FP2-F4", "F4-C4", "C4-P4", "P4-O2",
+    "FP1-F7","F7-T7","T7-P7","P7-O1",
+    "FP2-F8","F8-T8","T8-P8","P8-O2",
+    "FZ-CZ","CZ-PZ",
+    "FP1-F3","F3-C3","C3-P3","P3-O1",
+    "FP2-F4","F4-C4","C4-P4","P4-O2",
 ]
-
 
 # ============================== Utils =============================
 
 def _zscore(win: np.ndarray, eps=1e-8):
-    # win: (C, T)
     mu = win.mean(axis=1, keepdims=True)
     sd = win.std(axis=1, keepdims=True)
     return (win - mu) / (sd + eps)
-
 
 def _butter_bandpass(hp, lp, fs, order=4):
     if hp is None and lp is None:
@@ -63,20 +57,15 @@ def _butter_bandpass(hp, lp, fs, order=4):
         b, a = butter(order, Wn, btype="bandpass")
     return b, a
 
-
 def _apply_filters(x: np.ndarray, fs: int, fcfg: FilterSpec):
-    # DC removal
-    x = x - x.mean(axis=1, keepdims=True)
-    # Notch
+    x = x - x.mean(axis=1, keepdims=True)  # DC
     if fcfg.notch_hz is not None and fcfg.notch_hz > 0:
         b_notch, a_notch = iirnotch(fcfg.notch_hz / (fs / 2), fcfg.q_notch)
         x = filtfilt(b_notch, a_notch, x, axis=1, method="gust")
-    # Band/low/high
     b, a = _butter_bandpass(fcfg.hp_hz, fcfg.lp_hz, fs)
     if b is not None:
         x = filtfilt(b, a, x, axis=1, method="gust")
     return x
-
 
 def _resample(x: np.ndarray, fs_in: int, fs_out: int):
     if fs_in == fs_out:
@@ -87,8 +76,7 @@ def _resample(x: np.ndarray, fs_in: int, fs_out: int):
     down = fs_in // g
     return resample_poly(x, up=up, down=down, axis=1)
 
-
-def _iter_windows(n_samples: int, fs: int, win_s: float, stride_s: float) -> Iterator[Tuple[int, int]]:
+def _iter_windows(n_samples: int, fs: int, win_s: float, stride_s: float) -> Iterator[Tuple[int,int]]:
     w = int(round(win_s * fs))
     s = int(round(stride_s * fs))
     start = 0
@@ -96,56 +84,39 @@ def _iter_windows(n_samples: int, fs: int, win_s: float, stride_s: float) -> Ite
         yield start, start + w
         start += s
 
-
-# ---------------- Channel mapping (mono first, then bipolar) ----------------
-
 def _normalize_label(nm: str) -> str:
-    # normalize label to a canonical uppercase form without spaces, drop suffixes
     n = nm.strip().upper().replace(" ", "")
     n = n.replace("EEG", "")
     n = n.replace("-LE", "").replace("-REF", "")
     n = n.strip("-")
     return n
 
-
 def _map_channels_try(raw_ch: List[str], target_list: List[str], aliases: Dict[str, str]):
-    # returns (sel_indices, missing_targets)
     ali = {k.lower(): v for k, v in aliases.items()} if aliases else {}
     norm = []
     for ch in raw_ch:
         nm = _normalize_label(ch)
-        # alias map expects lower keys
         if nm.lower() in ali:
-            nm = ali[nm.lower()]
-            nm = _normalize_label(nm)
+            nm = _normalize_label(ali[nm.lower()])
         norm.append(nm)
-
     pos = {}
     for i, nm in enumerate(norm):
         if nm not in pos:
             pos[nm] = i
-
     sel, missing = [], []
     for tgt in target_list:
         tn = _normalize_label(tgt)
-        if tn in pos:
-            sel.append(pos[tn])
-        else:
-            missing.append(tgt)
+        if tn in pos: sel.append(pos[tn])
+        else: missing.append(tgt)
     return sel, missing
-
 
 # ============================== IO ===============================
 
 def _list_chbmit_files(root: Path, subject_id: str):
     subj_dir = root / subject_id
-    if not subj_dir.exists():
-        return []
-    return sorted(subj_dir.glob("*.edf"))
-
+    return sorted(subj_dir.glob("*.edf")) if subj_dir.exists() else []
 
 def _load_chbmit_edf(path: Path):
-    # returns data(µV): (C, T), fs, ch_names, session_id
     try:
         raw = mne.io.read_raw_edf(str(path), preload=True, verbose="ERROR")
     except Exception as e:
@@ -154,61 +125,62 @@ def _load_chbmit_edf(path: Path):
     data = raw.get_data() * 1e6  # V → µV
     return data, fs, raw.info["ch_names"], path.stem
 
-
 # =========================== Writer / QA ==========================
 
 class ShardWriter:
-    def __init__(self, out_root: Path, shard_size: int, channels: List[str]):
+    """
+    Keyed writer: keeps separate buffers per (dataset, subject_id, channels_used)
+    so (C,T) stays consistent within each shard.
+    """
+    def __init__(self, out_root: Path, shard_size: int):
         self.out_root = out_root
         self.shard_size = shard_size
-        self.channels = channels
-        self.buf_x, self.buf_meta = [], []
+        # key -> dict(x: list, meta: list, channels: list)
+        self._bufs: Dict[Tuple[str,str,str], Dict[str, list]] = {}
 
-    def _flush(self):
-        if not self.buf_x:
+    def _flush_key(self, key):
+        buf = self._bufs.get(key)
+        if not buf or not buf["x"]:
             return
-        ds = self.buf_meta[0]["dataset"]
-        sbj = self.buf_meta[0]["subject_id"]
-        out_dir = self.out_root / ds / sbj
+        ds = buf["meta"][0]["dataset"]
+        sbj = buf["meta"][0]["subject_id"]
+        chset = buf["meta"][0]["channels_used"]  # 'monopolar19' or 'bipolar18'
+        out_dir = self.out_root / ds / sbj / chset
         out_dir.mkdir(parents=True, exist_ok=True)
         idx = len(list(out_dir.glob("shard_*.npz")))
         path = out_dir / f"shard_{idx:05d}.npz"
         np.savez_compressed(
             path,
-            x=np.stack(self.buf_x, axis=0),  # (N, C, T)
-            meta=np.array(self.buf_meta, dtype=object)
+            x=np.stack(buf["x"], axis=0),
+            meta=np.array(buf["meta"], dtype=object),
+            channels=np.array(buf["channels"], dtype=object),
         )
-        n = len(self.buf_x)
-        self.buf_x, self.buf_meta = [], []
-        return path, n
+        buf["x"].clear(); buf["meta"].clear()
 
-    def add(self, x, meta):
-        self.buf_x.append(x)
-        self.buf_meta.append(meta)
-        if len(self.buf_x) >= self.shard_size:
-            self._flush()
+    def add(self, x: np.ndarray, meta: Dict, channels: List[str]):
+        key = (meta["dataset"], meta["subject_id"], meta["channels_used"])
+        if key not in self._bufs:
+            self._bufs[key] = {"x": [], "meta": [], "channels": channels}
+        self._bufs[key]["x"].append(x)
+        self._bufs[key]["meta"].append(meta)
+        if len(self._bufs[key]["x"]) >= self.shard_size:
+            self._flush_key(key)
 
     def close(self):
-        self._flush()
-
+        for key in list(self._bufs.keys()):
+            self._flush_key(key)
 
 class QALogger:
-    def __init__(self):
-        self.rows = []
-
-    def log(self, **kw):
-        self.rows.append(kw)
-
+    def __init__(self): self.rows = []
+    def log(self, **kw): self.rows.append(kw)
     def save(self, path: Path):
         df = pd.DataFrame(self.rows)
         path.parent.mkdir(parents=True, exist_ok=True)
         try:
             md = "# Pretrain Data QC\n\n" + df.head(200).to_markdown(index=False)
         except Exception:
-            # fallback if tabulate isn't installed
             md = "# Pretrain Data QC (CSV fallback)\n\n" + df.head(200).to_csv(index=False)
         path.write_text(md)
-
 
 # ========================== Processing ===========================
 
@@ -216,7 +188,7 @@ def process_subject_chbmit(root: Path, subject_id: str, io: IOSpec, fcfg: Filter
                            writer: ShardWriter, qa: QALogger):
     files = _list_chbmit_files(root, subject_id)
     if not files:
-        print(f"[WARN] No EDFs for {subject_id} at {root / subject_id}")
+        print(f"[WARN] No EDFs for {subject_id} at {root/subject_id}")
         qa.log(dataset="chbmit", subject=subject_id, session="", issue="no_files", missing="")
         return
 
@@ -246,19 +218,16 @@ def process_subject_chbmit(root: Path, subject_id: str, io: IOSpec, fcfg: Filter
             target_channels = CHBMIT_BIPOLAR18
             missing = missing_bp
 
-        x_ct = x_uv[sel, :]  # (C*, T)
+        x_ct = x_uv[sel, :]
         x_ct = _resample(x_ct, fs_in, io.fs_target)
         fs = io.fs_target
         x_ct = _apply_filters(x_ct, fs, fcfg)
 
-        # window → zscore → write
+        W = int(round(io.window_s * fs))
         for s0, s1 in _iter_windows(x_ct.shape[1], fs, io.window_s, io.stride_s):
             win = x_ct[:, s0:s1]
-            if win.shape[1] != int(round(io.window_s * fs)):
-                continue
-            # flatline drop
-            if float(np.median(win.std(axis=1))) < 1e-3:
-                continue
+            if win.shape[1] != W: continue
+            if float(np.median(win.std(axis=1))) < 1e-3: continue
             win_z = _zscore(win)
             meta = {
                 "dataset": "chbmit",
@@ -269,13 +238,12 @@ def process_subject_chbmit(root: Path, subject_id: str, io: IOSpec, fcfg: Filter
                 "channels": target_channels,
                 "channels_used": used_set,
             }
-            writer.add(win_z.astype(np.float32), meta)
+            writer.add(win_z.astype(np.float32), meta, target_channels)
 
         qa.log(dataset="chbmit", subject=subject_id, session=f.name, issue="ok",
                missing=",".join(missing))
 
     print(f"[OK] {subject_id}: processed {len(files)} EDF(s)")
-
 
 # ============================= Main ==============================
 
@@ -302,20 +270,18 @@ def main():
     )
 
     # Filters
-    if args.bandpass.lower() == "none" or args.bandpass.lower() == "none,none":
+    if args.bandpass.lower() in ("none", "none,none"):
         hp, lp = None, None
     else:
         hp_s, lp_s = args.bandpass.split(",")
-        hp = None if hp_s.strip().lower() == "none" else float(hp_s)
-        lp = None if lp_s.strip().lower() == "none" else float(lp_s)
+        hp = None if hp_s.strip().lower()=="none" else float(hp_s)
+        lp = None if lp_s.strip().lower()=="none" else float(lp_s)
     notch = None if args.notch is None or args.notch <= 0 else float(args.notch)
     fcfg = FilterSpec(hp_hz=hp, lp_hz=lp, notch_hz=notch)
 
-    out_root = Path(args.out);
-    out_root.mkdir(parents=True, exist_ok=True)
-    qa_path = Path(args.qa_md);
-    qa_path.parent.mkdir(parents=True, exist_ok=True)
-    writer = ShardWriter(out_root, args.shard_size, io.channels_common)
+    out_root = Path(args.out); out_root.mkdir(parents=True, exist_ok=True)
+    qa_path = Path(args.qa_md); qa_path.parent.mkdir(parents=True, exist_ok=True)
+    writer = ShardWriter(out_root, args.shard_size)
     qa = QALogger()
 
     want = {d.strip().lower() for d in args.datasets.split(",") if d.strip()}
@@ -330,13 +296,12 @@ def main():
         for sid in tqdm(sorted(subs), desc="CHB-MIT"):
             process_subject_chbmit(chb_root, sid, io, fcfg, writer, qa)
 
-    # TODO: add TUH and Kaggle loaders mirroring CHB-MIT
+    # TODO: add TUH and Kaggle loaders
 
     writer.close()
     qa.save(qa_path)
     print(f"[DONE] Shards -> {out_root}")
     print(f"[DONE] QA report -> {qa_path}")
-
 
 if __name__ == "__main__":
     main()
