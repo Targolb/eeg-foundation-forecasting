@@ -19,3 +19,4 @@ optuna
 wandb
 tensorboard
 python-dotenv
+tabulate
